@@ -51,6 +51,7 @@ public class Provider extends ControlProviderReciever {
                 deviceSig = hexStringToByteArray(deviceSigString);
             }
         }
+        SequenceNumberIndex = prefs.getInt("pref_light_controller_seq", 0);
 
         if(handler == null) {
             handler = new Handler() {
@@ -71,6 +72,8 @@ public class Provider extends ControlProviderReciever {
                         case UDPConnection.SIGNATURE:
                             deviceSig = (byte[])msg.obj;
                             prefs.edit().putString("pref_light_controller_sig", byteArrayToHex(deviceSig)).commit();
+                            prefs.edit().putInt("pref_light_controller_seq", 0).commit();
+                            SequenceNumberIndex = 0;
                             Log.d("Provider", "Got Session ID:" + byteArrayToHex(deviceSig));
                             break;
                     }
@@ -126,7 +129,6 @@ public class Provider extends ControlProviderReciever {
             case 4: zoneByte = 0x04; break;
         }
 
-        Log.d("Provider", "Got Session ID:" + byteArrayToHex(deviceSig));
         if(deviceSig == null) {
             Log.d("Provider", "We have no signature :(");
             return null;
@@ -158,14 +160,26 @@ public class Provider extends ControlProviderReciever {
             checksum += aZoneInfo;
         }
 
-        byte[] c = new byte[header.length + command.length + zoneInfo.length + 1];
+        Log.d("provider", "Checksum value: "+checksum+", hex: "+byteArrayToHex(new byte[] {(byte)checksum}));
 
-        System.arraycopy(header, 0, c, 0, header.length);
-        System.arraycopy(command, 0, c, header.length, command.length);
-        System.arraycopy(zoneInfo, 0, c, command.length, zoneInfo.length);
-        c[c.length -1] = (byte)checksum;
+        byte[] c = concatenateByteArrays(header, command);
+        c = concatenateByteArrays(c, zoneInfo);
+        c = concatenateByteArrays(c, new byte[] {(byte)checksum});
+
+        SequenceNumberIndex ++;
+        if(SequenceNumberIndex > 255) {
+            SequenceNumberIndex = 0;
+        }
+        prefs.edit().putInt("pref_light_controller_seq", SequenceNumberIndex).commit();
 
         return c;
+    }
+
+    byte[] concatenateByteArrays(byte[] a, byte[] b) {
+        byte[] result = new byte[a.length + b.length];
+        System.arraycopy(a, 0, result, 0, a.length);
+        System.arraycopy(b, 0, result, a.length, b.length);
+        return result;
     }
 
     @Override
@@ -184,13 +198,7 @@ public class Provider extends ControlProviderReciever {
 
         byte[] data = null;
         try {
-            data = constructCommand(new byte[]{
-                    0x31, 0x00,
-                    0x00, 0x08,
-                    0x04, 0x01,
-                    0x00, 0x00,
-                    0x00
-            }, Zone);
+            data = constructCommand(hexStringToByteArray("310000080401000000"), Zone);
         } catch(Exception e) {
             e.printStackTrace();
         }
