@@ -92,10 +92,13 @@ public class UDPConnection {
     }
 
     public void sendAdminMessage(byte[] Bytes) {
-        sendAdminMessage(Bytes, false);
+        sendAdminMessage(Bytes, false, CONTROLLERADMINPORT);
+    }
+    public void sendAdminMessage(byte[] Bytes, final Boolean Device) {
+        sendAdminMessage(Bytes, Device, CONTROLLERADMINPORT);
     }
 
-    public void sendAdminMessage(final byte[] Bytes, final Boolean Device) {
+    public void sendAdminMessage(final byte[] Bytes, final Boolean Device, final int port) {
         if(server == null) {
             server = new UDP_Server();
             server.runUdpServer();
@@ -118,22 +121,13 @@ public class UDPConnection {
                         return;
                     }
                 }
-                Log.d("UDPC", "IP: "+NetworkBroadCast);
                 try {
-                    //DatagramSocket s = new DatagramSocket();
                     InetAddress controller = InetAddress.getByName(NetworkBroadCast);
-                    Log.d("UDPC", "Sending: "+byteArrayToHex(Bytes));
-                    DatagramPacket p = new DatagramPacket(Bytes, Bytes.length, controller, CONTROLLERADMINPORT);
+                    DatagramPacket p = new DatagramPacket(Bytes, Bytes.length, controller, port);
                     server.socket.setBroadcast(true);
                     server.socket.send(p);
                 } catch(IOException e) {
 
-                }
-                try {
-                    Thread.sleep(2000);
-                    destroyUDPC();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
                 }
             }
         }).start();
@@ -144,6 +138,15 @@ public class UDPConnection {
         for(byte b: a)
             sb.append(String.format("%02x", b));
         return sb.toString();
+    }
+
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len/2];
+        for(int i = 0; i < len; i+=2){
+            data[i/2] = (byte) ((Character.digit(s.charAt(i), 16) << 4) + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
     }
 
     public void destroyUDPC() {
@@ -176,10 +179,9 @@ public class UDPConnection {
                                 socket.receive(dp);
                                 byte[] data = dp.getData();
                                 String Data = new String(data);
-                                Log.d("Received Data", Data);
                                 if(data[0] == 0x28 && data[1] == 0x00 && data[2] == 0x00
-                                        && data[4] == 0x00 && data[5] == 0x11
-                                        && data[6] == 0x00 && data[7] == 0x02) {
+                                        && data[3] == 0x00 && data[4] == 0x11
+                                        && data[5] == 0x00 && data[6] == 0x02) {
                                     byte[] sig = new byte[] {data[19], data[20]};
                                     Message m = new Message();
                                     m.what = SIGNATURE;
