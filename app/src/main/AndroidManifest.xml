@@ -15,7 +15,8 @@
             android:name=".Provider"
             android:label="MiLight 3.0 Provider"
             android:exported="true"
-            android:enabled="true">
+            android:enabled="true"
+            android:process="com.piratemedia.milight3provider">
             <intent-filter>
                 <category android:name="tv.piratemedia.lightcontroler.provider"/>
                 <action android:name="tv.piratemedia.lightcontroler.provider.Select"/>

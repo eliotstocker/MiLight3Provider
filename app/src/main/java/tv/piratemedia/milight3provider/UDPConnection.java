@@ -118,17 +118,32 @@ public class UDPConnection {
                         return;
                     }
                 }
+                Log.d("UDPC", "IP: "+NetworkBroadCast);
                 try {
-                    DatagramSocket s = new DatagramSocket();
+                    //DatagramSocket s = new DatagramSocket();
                     InetAddress controller = InetAddress.getByName(NetworkBroadCast);
+                    Log.d("UDPC", "Sending: "+byteArrayToHex(Bytes));
                     DatagramPacket p = new DatagramPacket(Bytes, Bytes.length, controller, CONTROLLERADMINPORT);
-                    s.setBroadcast(true);
-                    s.send(p);
+                    server.socket.setBroadcast(true);
+                    server.socket.send(p);
                 } catch(IOException e) {
 
                 }
+                try {
+                    Thread.sleep(2000);
+                    destroyUDPC();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
         }).start();
+    }
+
+    public static String byteArrayToHex(byte[] a) {
+        StringBuilder sb = new StringBuilder(a.length * 2);
+        for(byte b: a)
+            sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
     public void destroyUDPC() {
@@ -141,6 +156,7 @@ public class UDPConnection {
     class UDP_Server {
         private AsyncTask<Void, Void, Void> async;
         public boolean Server_aktiv = true;
+        private DatagramSocket socket = null;
 
         @SuppressLint("NewApi")
         public void runUdpServer() {
@@ -153,12 +169,14 @@ public class UDPConnection {
                     DatagramSocket ds = null;
 
                     try {
-                        ds = new DatagramSocket(UDPConnection.CONTROLLERADMINPORT);
-                        ds.setSoTimeout(1000);
+                        socket = new DatagramSocket();
+                        socket.setSoTimeout(1000);
                         while (Server_aktiv) {
                             try {
-                                ds.receive(dp);
+                                socket.receive(dp);
                                 byte[] data = dp.getData();
+                                String Data = new String(data);
+                                Log.d("Received Data", Data);
                                 if(data[0] == 0x28 && data[1] == 0x00 && data[2] == 0x00
                                         && data[4] == 0x00 && data[5] == 0x11
                                         && data[6] == 0x00 && data[7] == 0x02) {
@@ -168,9 +186,8 @@ public class UDPConnection {
                                     m.obj = sig;
                                     mHandler.sendMessage(m);
                                     Server_aktiv = false;
+                                    break;
                                 }
-                                String Data = new String(data);
-                                Log.d("Received Data", Data);
                                 if(Data.startsWith("+ok")) {
                                     if(Data.startsWith("+ok=")) {
                                         Message m = new Message();
@@ -203,8 +220,8 @@ public class UDPConnection {
                     } catch (Exception e) {
                         e.printStackTrace();
                     } finally {
-                        if (ds != null) {
-                            ds.close();
+                        if (socket != null) {
+                            socket.close();
                         }
                     }
 

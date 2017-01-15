@@ -20,7 +20,6 @@ import tv.piratemedia.lightcontroler.api.appPermission;
 public class Provider extends ControlProviderReciever {
     private static appPermission[] ap = {new appPermission("tv.piratemedia.lightcontroler", -448508482)};
 
-
     private UDPConnection connection = null;
     private Handler handler = null;
     private String DiscoveredIP = null;
@@ -51,6 +50,7 @@ public class Provider extends ControlProviderReciever {
                     super.handleMessage(msg);
                     switch(msg.what) {
                         case UDPConnection.DISCOVERED_DEVICE:
+                            connection.destroyUDPC();
                             String[] ipMac = (String[])msg.obj;
                             DiscoveredIP = ipMac[0];
                             DiscoveredMac = ipMac[2];
@@ -62,6 +62,7 @@ public class Provider extends ControlProviderReciever {
                             getSessionID();
                             break;
                         case UDPConnection.SIGNATURE:
+                            connection.destroyUDPC();
                             deviceSig = (byte[])msg.obj;
                             Log.d("Retrieved Signature", "Sig: "+deviceSig);
                             break;
@@ -108,7 +109,15 @@ public class Provider extends ControlProviderReciever {
         connection.sendAdminMessage(bytes, true);
     }
 
-    public byte[] constructCommand(byte[] command, byte zone) {
+    public byte[] constructCommand(byte[] command, int zone) {
+        byte zoneByte = 0x00;
+        switch(zone) {
+            case 0: zoneByte = 0x00; break;
+            case 1: zoneByte = 0x01; break;
+            case 2: zoneByte = 0x02; break;
+            case 3: zoneByte = 0x03; break;
+            case 4: zoneByte = 0x04; break;
+        }
         byte[] header = new byte[] {
                 (byte)0x80,
                 0x00,
@@ -123,7 +132,7 @@ public class Provider extends ControlProviderReciever {
         };
 
         byte[] zoneInfo = new byte[] {
-                zone,
+                zoneByte,
                 0x00
         };
 
@@ -157,21 +166,13 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onLightsOn(int Type, int Zone, Context context) {
-        byte zoneByte = 0x00;
-        switch(Zone) {
-            case 0: zoneByte = 0x00; break;
-            case 1: zoneByte = 0x01; break;
-            case 2: zoneByte = 0x02; break;
-            case 3: zoneByte = 0x03; break;
-            case 4: zoneByte = 0x04; break;
-        }
         byte[] data = constructCommand(new byte[] {
                 0x31, 0x00,
                 0x00, 0x08,
                 0x04, 0x01,
                 0x00, 0x00,
                 0x00
-        }, zoneByte);
+        }, Zone);
 
         connection.sendMessage(data);
         Log.d("Provider", "Send On Command: "+data);
