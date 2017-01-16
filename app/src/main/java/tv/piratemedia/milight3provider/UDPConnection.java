@@ -32,6 +32,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class UDPConnection {
     public static final int DISCOVERED_DEVICE = 10;
@@ -43,69 +46,50 @@ public class UDPConnection {
     public static int CONTROLLERPORT = 0;
     public static int CONTROLLERADMINPORT = 48899;
     private utils Utils;
-    private UDP_Server server = null;
+    private static UDP_Server server = null;
     private SharedPreferences prefs;
-    private static Context mCtx;
-    private static Handler mHandler;
+    private static List<Handler> handlers = new ArrayList<>();
     private String NetworkBroadCast;
+    private Context mCtx;
 
     private boolean onlineMode = false;
 
+    private static UDPConnection instance = null;
+
     public UDPConnection(Context context, Handler handler) {
         mCtx = context;
-        mHandler = handler;
+        handlers.add(handler);
         Utils = new utils(context);
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
 
-        NetworkBroadCast = "192.168.0.255";
-        try {
-            NetworkBroadCast = Utils.getWifiIP(utils.BROADCAST_ADDRESS);
-        } catch (ConnectionException e) {
-            e.printStackTrace();
+        server = new UDP_Server();
+        server.runUdpServer();
+    }
+
+    public static UDPConnection getInstance(Context context, Handler handler) {
+        if(instance == null) {
+            instance = new UDPConnection(context, handler);
+        } else {
+            handlers.add(handler);
         }
+        return instance;
     }
 
     public void setOnlineMode(boolean online) {
         onlineMode = online;
     }
 
-    public void sendMessage(final byte[] Bytes) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                if(!onlineMode) {
-                    CONTROLLERIP = prefs.getString("pref_light_controller_ip", NetworkBroadCast);
-                    CONTROLLERPORT = Integer.parseInt(prefs.getString("pref_light_controller_port", "5987"));
-                    try {
-                        DatagramSocket s = new DatagramSocket();
-                        InetAddress controller = InetAddress.getByName(CONTROLLERIP);
-                        DatagramPacket p = new DatagramPacket(Bytes, 3, controller, CONTROLLERPORT);
-                        s.send(p);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                } else {
-                    //send message in online mode;
-                }
-            }
-        }).start();
+    public void sendMessage(byte[] Bytes) {
+        sendMessage(Bytes, false, CONTROLLERADMINPORT);
+    }
+    public void sendMessage(byte[] Bytes, final Boolean Device) {
+        sendMessage(Bytes, Device, CONTROLLERADMINPORT);
     }
 
-    public void sendAdminMessage(byte[] Bytes) {
-        sendAdminMessage(Bytes, false, CONTROLLERADMINPORT);
-    }
-    public void sendAdminMessage(byte[] Bytes, final Boolean Device) {
-        sendAdminMessage(Bytes, Device, CONTROLLERADMINPORT);
-    }
-
-    public void sendAdminMessage(final byte[] Bytes, final Boolean Device, final int port) {
+    public void sendMessage(final byte[] Bytes, final Boolean Device, final int port) {
         if(server == null) {
-            server = new UDP_Server();
-            server.runUdpServer();
-        } else if(!server.Server_aktiv) {
-            server.runUdpServer();
+            Log.e("UDPC", "Server is not initialised!");
         }
-
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -123,11 +107,9 @@ public class UDPConnection {
                 }
                 try {
                     InetAddress controller = InetAddress.getByName(NetworkBroadCast);
-                    DatagramPacket p = new DatagramPacket(Bytes, Bytes.length, controller, port);
-                    server.socket.setBroadcast(true);
-                    server.socket.send(p);
-                } catch(IOException e) {
-
+                    server.SendMessage(Bytes, controller, port);
+                } catch (UnknownHostException e) {
+                    e.printStackTrace();
                 }
             }
         }).start();
@@ -149,20 +131,23 @@ public class UDPConnection {
         return data;
     }
 
-    public void destroyUDPC() {
-        Log.d("controller", "destroy");
-        if(server != null) {
-            server.stop_UDP_Server();
+    private void sendMessageToHandlers(Message m) {
+        for(Handler h : handlers) {
+            Message send = new Message();
+            send.copyFrom(m);
+            h.sendMessage(send);
         }
+        m.recycle();
     }
 
     class UDP_Server {
         private AsyncTask<Void, Void, Void> async;
         public boolean Server_aktiv = true;
         private DatagramSocket socket = null;
+        private UDP_Server srv = this;
 
         @SuppressLint("NewApi")
-        public void runUdpServer() {
+        void runUdpServer() {
             Server_aktiv = true;
             async = new AsyncTask<Void, Void, Void>() {
                 @Override
@@ -172,13 +157,14 @@ public class UDPConnection {
                     DatagramSocket ds = null;
 
                     try {
-                        socket = new DatagramSocket();
-                        socket.setSoTimeout(1000);
+                        srv.socket = new DatagramSocket();
+                        srv.socket.setSoTimeout(1000);
                         while (Server_aktiv) {
                             try {
-                                socket.receive(dp);
+                                srv.socket.receive(dp);
                                 byte[] data = dp.getData();
                                 String Data = new String(data);
+                                Log.d("Received", byteArrayToHex(data));
                                 if(data[0] == 0x28 && data[1] == 0x00 && data[2] == 0x00
                                         && data[3] == 0x00 && data[4] == 0x11
                                         && data[5] == 0x00 && data[6] == 0x02) {
@@ -186,32 +172,28 @@ public class UDPConnection {
                                     Message m = new Message();
                                     m.what = SIGNATURE;
                                     m.obj = sig;
-                                    mHandler.sendMessage(m);
-                                    Server_aktiv = false;
-                                    break;
-                                }
-                                if(Data.startsWith("+ok")) {
-                                    if(Data.startsWith("+ok=")) {
-                                        Message m = new Message();
-                                        m.what = LIST_WIFI_NETWORKS;
-                                        m.obj = Data;
-                                        mHandler.sendMessage(m);
-                                        Server_aktiv = false;
-                                    } else {
-                                        Message m = new Message();
-                                        m.what = COMMAND_SUCCESS;
-                                        mHandler.sendMessage(m);
-                                        Server_aktiv = false;
-                                    }
+                                    sendMessageToHandlers(m);
                                 } else {
-                                    String[] parts = Data.split(",");
-                                    if (parts.length > 1) {
-                                        if (Utils.validIP(parts[0]) && Utils.validMac(parts[1])) {
+                                    if (Data.startsWith("+ok")) {
+                                        if (Data.startsWith("+ok=")) {
                                             Message m = new Message();
-                                            m.what = DISCOVERED_DEVICE;
-                                            m.obj = parts;
-                                            mHandler.sendMessage(m);
-                                            Server_aktiv = false;
+                                            m.what = LIST_WIFI_NETWORKS;
+                                            m.obj = Data;
+                                            sendMessageToHandlers(m);
+                                        } else {
+                                            Message m = new Message();
+                                            m.what = COMMAND_SUCCESS;
+                                            sendMessageToHandlers(m);
+                                        }
+                                    } else {
+                                        String[] parts = Data.split(",");
+                                        if (parts.length > 1) {
+                                            if (Utils.validIP(parts[0]) && Utils.validMac(parts[1])) {
+                                                Message m = new Message();
+                                                m.what = DISCOVERED_DEVICE;
+                                                m.obj = parts;
+                                                sendMessageToHandlers(m);
+                                            }
                                         }
                                     }
                                 }
@@ -223,6 +205,7 @@ public class UDPConnection {
                         e.printStackTrace();
                     } finally {
                         if (socket != null) {
+                            Log.d("Close Socket", "Port: "+socket.getLocalPort());
                             socket.close();
                         }
                     }
@@ -236,7 +219,20 @@ public class UDPConnection {
             else async.execute();
         }
 
-        public void stop_UDP_Server() {
+        void SendMessage(byte[] data, InetAddress host, int port) {
+            if(this.socket == null) {
+                Log.e("UDPC", "Socket is null :(");
+                return;
+            }
+            DatagramPacket p = new DatagramPacket(data, data.length, host, port);
+            try {
+                this.socket.send(p);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public void destroy() {
             Server_aktiv = false;
         }
     }

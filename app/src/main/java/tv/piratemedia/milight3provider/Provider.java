@@ -81,7 +81,10 @@ public class Provider extends ControlProviderReciever {
             };
         }
         if(connection == null) {
-            connection = new UDPConnection(context, handler);
+            connection = UDPConnection.getInstance(context, handler);
+            if(DiscoveredIP != null) {
+                getSessionID();
+            }
         }
         super.onReceive(context, intent);
     }
@@ -116,7 +119,7 @@ public class Provider extends ControlProviderReciever {
                 0x00,
                 0x1E
         };
-        connection.sendAdminMessage(bytes, true, 5987);
+        connection.sendMessage(bytes, true, 5987);
     }
 
     public byte[] constructCommand(byte[] command, int zone) {
@@ -160,6 +163,7 @@ public class Provider extends ControlProviderReciever {
             checksum += aZoneInfo;
         }
 
+
         Log.d("provider", "Checksum value: "+checksum+", hex: "+byteArrayToHex(new byte[] {(byte)checksum}));
 
         byte[] c = concatenateByteArrays(header, command);
@@ -186,7 +190,7 @@ public class Provider extends ControlProviderReciever {
     public void onDiscovery(Context context) {
         Log.d("Provider", "Starting Discovery of Provider 3.0");
         try {
-            connection.sendAdminMessage("HF-A11ASSISTHREAD".getBytes("UTF-8"));
+            connection.sendMessage("HF-A11ASSISTHREAD".getBytes("UTF-8"));
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
         }
@@ -198,19 +202,30 @@ public class Provider extends ControlProviderReciever {
 
         byte[] data = null;
         try {
-            data = constructCommand(hexStringToByteArray("310000080401000000"), Zone);
+            data = constructCommand(RGBWCommands.ON.commandBytes(), Zone);
         } catch(Exception e) {
             e.printStackTrace();
         }
 
         Log.d("Provider", "Send On Command: "+byteArrayToHex(data));
 
-        connection.sendMessage(data);
+        connection.sendMessage(data, true, 5987);
     }
 
     @Override
     public void onLightsOff(int Type, int Zone, Context context) {
+        Log.d("Provider", "Turn Lights On Now");
 
+        byte[] data = null;
+        try {
+            data = constructCommand(RGBWCommands.OFF.commandBytes(), Zone);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+
+        Log.d("Provider", "Send Off Command: "+byteArrayToHex(data));
+
+        connection.sendMessage(data, true, 5987);
     }
 
     @Override
