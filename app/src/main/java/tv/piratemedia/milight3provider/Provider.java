@@ -200,21 +200,39 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onLightsOn(int Type, int Zone, Context context) {
-        try {
-            byte[] data = constructCommand(RGBWCommands.ON.commandBytes(), Zone);
-            connection.sendMessage(data, true, 5987);
-        } catch(Exception e) {
-            e.printStackTrace();
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            try {
+                byte[] data = constructCommand(RGBWCommands.ON.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if(Type == ControlProviderReciever.ZONE_TYPE_WHITE) {
+            try {
+                byte[] data = constructCommand(WhiteCommands.ON.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     @Override
     public void onLightsOff(int Type, int Zone, Context context) {
-        try {
-            byte[] data = constructCommand(RGBWCommands.OFF.commandBytes(), Zone);
-            connection.sendMessage(data, true, 5987);
-        } catch(Exception e) {
-            e.printStackTrace();
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            try {
+                byte[] data = constructCommand(RGBWCommands.OFF.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if(Type == ControlProviderReciever.ZONE_TYPE_WHITE) {
+            try {
+                byte[] data = constructCommand(WhiteCommands.OFF.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -227,7 +245,12 @@ public class Provider extends ControlProviderReciever {
             e.printStackTrace();
         }
 
-        //TODO:Add white light commands
+        try {
+            byte[] data = constructCommand(WhiteCommands.ON.commandBytes(), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -239,17 +262,26 @@ public class Provider extends ControlProviderReciever {
             e.printStackTrace();
         }
 
-        //TODO:Add white light commands
+        try {
+            byte[] data = constructCommand(WhiteCommands.OFF.commandBytes(), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onSetBrightness(int Type, int Zone, float Brightness, Context context) {
-        int val = Math.round(100f * Brightness);
-        try {
-            byte[] data = constructCommand(RGBWCommands.BRIGHTNESS.processComand((byte)val), 0);
-            connection.sendMessage(data, true, 5987);
-        } catch(Exception e) {
-            e.printStackTrace();
+        if(Type == ControlProviderReciever.ZONE_TYPE_WHITE) {
+            Log.e("MiLight3.0Provider", "Attempt to control non stateful lights with stateful command");
+        } else {
+            int val = Math.round(100f * Brightness);
+            try {
+                byte[] data = constructCommand(RGBWCommands.BRIGHTNESS.processComand((byte) val), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -258,7 +290,12 @@ public class Provider extends ControlProviderReciever {
         if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
             Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
         } else {
-            //TODO: implement White Lights
+            try {
+                byte[] data = constructCommand(WhiteCommands.BRIGHTNESSUP.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -267,7 +304,12 @@ public class Provider extends ControlProviderReciever {
         if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
             Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
         } else {
-            //TODO: implement White Lights
+            try {
+                byte[] data = constructCommand(WhiteCommands.BRIGHTNESSDOWN.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -287,7 +329,7 @@ public class Provider extends ControlProviderReciever {
         }
         dec = 255 - dec;
         try {
-            byte[] data = constructCommand(RGBWCommands.COLOR.processComand((byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue()), 0);
+            byte[] data = constructCommand(RGBWCommands.COLOR.processComand((byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue()), Zone);
             connection.sendMessage(data, true, 5987);
         } catch(Exception e) {
             e.printStackTrace();
@@ -301,27 +343,68 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onIncreaseTemperature(int Type, int Zone, Context context) {
-
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
+        } else {
+            try {
+                byte[] data = constructCommand(WhiteCommands.TEMPUP.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void onDecreaseTemperature(int Type, int Zone, Context context) {
-
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
+        } else {
+            try {
+                byte[] data = constructCommand(WhiteCommands.TEMPDOWN.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void onSetNight(int Type, int Zone, Context context) {
-        try {
-            byte[] data = constructCommand(RGBWCommands.NIGHT.commandBytes(), Zone);
-            connection.sendMessage(data, true, 5987);
-        } catch(Exception e) {
-            e.printStackTrace();
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            try {
+                byte[] data = constructCommand(RGBWCommands.NIGHT.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if(Type == ControlProviderReciever.ZONE_TYPE_WHITE) {
+            try {
+                byte[] data = constructCommand(WhiteCommands.NIGHT.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
 
     @Override
     public void onSetFull(int Type, int Zone, Context context) {
-
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            try {
+                byte[] data = constructCommand(RGBWCommands.BRIGHTNESS.processComand((byte) 100), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else if(Type == ControlProviderReciever.ZONE_TYPE_WHITE) {
+            try {
+                byte[] data = constructCommand(WhiteCommands.NIGHT.commandBytes(), Zone);
+                connection.sendMessage(data, true, 5987);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
