@@ -41,6 +41,7 @@ public class Provider extends ControlProviderReciever {
         prefs = PreferenceManager.getDefaultSharedPreferences(context);
         if(DiscoveredIP == null) {
             DiscoveredIP = prefs.getString("pref_light_controller_ip", null);
+            Log.d("IP", DiscoveredIP);
         }
         if(DiscoveredMac == null) {
             DiscoveredMac = prefs.getString("pref_light_controller_mac", null);
@@ -82,9 +83,9 @@ public class Provider extends ControlProviderReciever {
         }
         if(connection == null) {
             connection = UDPConnection.getInstance(context, handler);
-            if(DiscoveredIP != null) {
+            /*if(DiscoveredIP != null) {
                 getSessionID();
-            }
+            }*/
         }
         super.onReceive(context, intent);
     }

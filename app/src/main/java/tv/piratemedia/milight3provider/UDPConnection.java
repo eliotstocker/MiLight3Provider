@@ -105,6 +105,7 @@ public class UDPConnection {
                         return;
                     }
                 }
+                Log.d("UDPC", "Sending command to: "+NetworkBroadCast);
                 try {
                     InetAddress controller = InetAddress.getByName(NetworkBroadCast);
                     server.SendMessage(Bytes, controller, port);
