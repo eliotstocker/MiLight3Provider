@@ -3,6 +3,7 @@ package tv.piratemedia.milight3provider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
@@ -199,69 +200,103 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onLightsOn(int Type, int Zone, Context context) {
-        Log.d("Provider", "Turn Lights On Now");
-
-        byte[] data = null;
         try {
-            data = constructCommand(RGBWCommands.ON.commandBytes(), Zone);
+            byte[] data = constructCommand(RGBWCommands.ON.commandBytes(), Zone);
+            connection.sendMessage(data, true, 5987);
         } catch(Exception e) {
             e.printStackTrace();
         }
-
-        Log.d("Provider", "Send On Command: "+byteArrayToHex(data));
-
-        connection.sendMessage(data, true, 5987);
     }
 
     @Override
     public void onLightsOff(int Type, int Zone, Context context) {
-        Log.d("Provider", "Turn Lights On Now");
-
-        byte[] data = null;
         try {
-            data = constructCommand(RGBWCommands.OFF.commandBytes(), Zone);
+            byte[] data = constructCommand(RGBWCommands.OFF.commandBytes(), Zone);
+            connection.sendMessage(data, true, 5987);
         } catch(Exception e) {
             e.printStackTrace();
         }
-
-        Log.d("Provider", "Send Off Command: "+byteArrayToHex(data));
-
-        connection.sendMessage(data, true, 5987);
     }
 
     @Override
     public void onGlobalOn(Context context) {
+        try {
+            byte[] data = constructCommand(RGBWCommands.ON.commandBytes(), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
+        //TODO:Add white light commands
     }
 
     @Override
     public void onGlobalOff(Context context) {
+        try {
+            byte[] data = constructCommand(RGBWCommands.OFF.commandBytes(), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
 
+        //TODO:Add white light commands
     }
 
     @Override
     public void onSetBrightness(int Type, int Zone, float Brightness, Context context) {
-
+        int val = Math.round(100f * Brightness);
+        try {
+            byte[] data = constructCommand(RGBWCommands.BRIGHTNESS.processComand((byte)val), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onIncreaseBrightness(int Type, int Zone, Context context) {
-
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
+        } else {
+            //TODO: implement White Lights
+        }
     }
 
     @Override
     public void onDecreaseBrightness(int Type, int Zone, Context context) {
-
+        if(Type == ControlProviderReciever.ZONE_TYPE_COLOR) {
+            Log.e("MiLight3.0Provider", "Attempt to control stateful lights with non stateful command");
+        } else {
+            //TODO: implement White Lights
+        }
     }
 
     @Override
     public void onSetColor(int Zone, int color, Context context) {
-
+        float[] colors = new float[3];
+        Color.colorToHSV(color, colors);
+        Float deg = (float) Math.toRadians(-colors[0]);
+        Float dec = (deg/((float)Math.PI*2f))*255f;
+        //rotation compensation
+        dec -= 10;
+        if(dec > 255) {
+            dec = dec - 255;
+        }
+        if(dec < 0) {
+            dec = dec + 255;
+        }
+        dec = 255 - dec;
+        try {
+            byte[] data = constructCommand(RGBWCommands.COLOR.processComand((byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue(), (byte)dec.intValue()), 0);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onSetTemperature(int Type, int Zone, float Temp, Context context) {
-
+        Log.d("MiLight3.0Provider", "not implemented in this provider, should never be called");
     }
 
     @Override
@@ -276,7 +311,12 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onSetNight(int Type, int Zone, Context context) {
-
+        try {
+            byte[] data = constructCommand(RGBWCommands.NIGHT.commandBytes(), Zone);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -286,6 +326,11 @@ public class Provider extends ControlProviderReciever {
 
     @Override
     public void onSetWhite(int Zone, Context context) {
-
+        try {
+            byte[] data = constructCommand(RGBWCommands.WHITE.commandBytes(), Zone);
+            connection.sendMessage(data, true, 5987);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
     }
 }
